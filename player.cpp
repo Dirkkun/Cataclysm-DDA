@@ -82,7 +82,9 @@ player::player()
  }
 
  for (int i = 0; i < num_bp; i++) {
-  temp_cur[i] = BODYTEMP_NORM; frostbite_timer[i] = 0;
+  temp_cur[i] = BODYTEMP_NORM;
+  frostbite_timer[i] = 0;
+  temp_conv[i] = BODYTEMP_NORM;
  }
 }
 
@@ -169,6 +171,9 @@ player& player::operator= (const player & rhs)
 
  for (int i = 0; i < num_bp; i++)
   temp_cur[i] = rhs.temp_cur[i];
+
+ for (int i = 0 ; i < num_bp; i++)
+  temp_conv[i] = BODYTEMP_NORM;
 
  for (int i = 0; i < num_bp; i++)
   frostbite_timer[i] = rhs.frostbite_timer[i];
@@ -388,7 +393,21 @@ void player::update_bodytemp(game *g) // TODO bionics, diseases and humidity (no
   }
  // Current temperature and converging temperature calculations
  for (int i = 0 ; i < num_bp ; i++){
-  if (i == bp_eyes) continue; // Skip eyes
+  // CONDITIONS TO SKIP OVER BODY TEMPERATURE CALCULATION
+  // Eyes
+  if (i == bp_eyes)
+   { temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue; }
+  // Mutations
+  if (i == bp_hands && (has_trait(PF_TALONS) || has_trait(PF_WEBBED)))
+   {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
+  if (i == bp_mouth && has_trait(PF_BEAK))
+   {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
+  if (i == bp_feet && has_trait(PF_HOOVES))
+   {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
+  if (i == bp_torso && has_trait(PF_SHELL))
+   {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
+  if (i == bp_head && has_trait(PF_HORNS_CURLED))
+   {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
   // Represents the fact that the body generates heat when it is cold. TODO : should this increase hunger?
   float homeostasis_adjustement = (temp_cur[i] > BODYTEMP_NORM ? 40.0 : 60.0);
   int clothing_warmth_adjustement = homeostasis_adjustement * (float)warmth(body_part(i)) * (1.0 - (float)bodywetness / 100.0);
@@ -452,7 +471,7 @@ void player::update_bodytemp(game *g) // TODO bionics, diseases and humidity (no
    }
   // Bionic "Thermal Dissapation" says it prevents fire damage up to 2000F. 500 is picked at random...
   if (has_bionic("bio_heatsink") && blister_count < 500)
-   blister_count = 0;
+   blister_count = (has_trait(PF_BARK) ? -100 : 0);
   // BLISTERS : Skin gets blisters from intense heat exposure.
   if (blister_count - 10*resist(body_part(i)) > 20)
    add_disease(dis_type(blister_pen), 1, g);
@@ -486,6 +505,12 @@ void player::update_bodytemp(game *g) // TODO bionics, diseases and humidity (no
   case bp_hands : temp_equalizer(bp_hands, bp_arms); break;
   case bp_feet  : temp_equalizer(bp_feet, bp_legs); break;
   }
+  // MUTATIONS
+  // Bark : lowers blister count to -100; harder to get blisters
+  // Lightly furred
+  if (has_trait(PF_LIGHTFUR)) temp_conv[i] += (temp_cur[i] > BODYTEMP_NORM ? 250 : 500);
+  // Furry
+  if (has_trait(PF_FUR)) temp_conv[i] += (temp_cur[i] > BODYTEMP_NORM ? 750 : 1500);
   // FINAL CALCULATION : Increments current body temperature towards convergant.
   int temp_before = temp_cur[i];
   int temp_difference = temp_cur[i] - temp_conv[i]; // Negative if the player is warming up.
@@ -2395,13 +2420,24 @@ int player::read_speed(bool real_life)
 
 int player::talk_skill()
 {
-  int ret = int_cur + per_cur + skillLevel("speech") * 3;
- if (has_trait(PF_DEFORMED))
-  ret -= 4;
- else if (has_trait(PF_DEFORMED2))
-  ret -= 6;
-
- return ret;
+    int ret = int_cur + per_cur + skillLevel("speech") * 3;
+    if (has_trait(PF_UGLY))
+        ret -= 3;
+    else if (has_trait(PF_DEFORMED))
+        ret -= 6;
+    else if (has_trait(PF_DEFORMED2))
+        ret -= 12;
+    else if (has_trait(PF_DEFORMED3))
+        ret -= 18;
+    else if (has_trait(PF_PRETTY))
+        ret += 1;
+    else if (has_trait(PF_BEAUTIFUL))
+        ret += 2;
+    else if (has_trait(PF_BEAUTIFUL2))
+        ret += 4;
+    else if (has_trait(PF_BEAUTIFUL3))
+        ret += 6;
+    return ret;
 }
 
 int player::intimidation()
@@ -2413,6 +2449,12 @@ int player::intimidation()
   ret += 5;
  if (has_trait(PF_DEFORMED2))
   ret += 3;
+ else if (has_trait(PF_DEFORMED3))
+  ret += 6;
+ else if (has_trait(PF_PRETTY))
+  ret -= 1;
+ else if (has_trait(PF_BEAUTIFUL) || has_trait(PF_BEAUTIFUL2) || has_trait(PF_BEAUTIFUL3))
+  ret -= 4;
  if (stim > 20)
   ret += 2;
  if (has_disease(DI_DRUNK))
@@ -4215,7 +4257,7 @@ bool player::eat(game *g, char ch)
             // For when bionics let you burn organic materials
         if (eaten->type->is_book()) {
             it_book* book = dynamic_cast<it_book*>(eaten->type);
-            if (book->type != NULL && !query_yn("Really eat %s?", book->name.c_str())) 
+            if (book->type != NULL && !query_yn("Really eat %s?", book->name.c_str()))
                 return false;
         }
         int charge = (eaten->volume() + eaten->weight()) / 2;
@@ -5448,10 +5490,10 @@ int player::encumb(body_part bp, int &layers, int &armorenc, int &warmth)
     // Following items undo their layering. Once. Bodypart has to be taken into account, hence the switch.
     switch (bp)
     {
-        case bp_feet  : if (!(is_wearing("socks") || is_wearing("socks_wool"))) break; else layers--;
-        case bp_legs  : if (!is_wearing("long_underpants")) break; else layers--;
-        case bp_hands : if (!is_wearing("gloves_liner")) break; else layers--;
-        case bp_torso : if (!is_wearing("under_armor")) break; else layers--;
+        case bp_feet  : if (is_wearing("socks") || is_wearing("socks_wool")) layers--; break;
+        case bp_legs  : if (is_wearing("long_underpants")) layers--; break;
+        case bp_hands : if (is_wearing("gloves_liner")) layers--; break;
+        case bp_torso : if (is_wearing("under_armor")) layers--; break;
     }
     if (layers > 1)
     {

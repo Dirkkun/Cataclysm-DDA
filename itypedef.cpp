@@ -42,17 +42,17 @@ void game::init_itypes ()
 // Fire - only appears in crafting recipes
  itypes["fire"]=
   new itype("fire", 0, 0, "nearby fire",
-            "Some fire - if you are reading this it's a bug!",
+            "Some fire - if you are reading this it's a bug! (itypdef:fire)",
             '$', c_red, MNULL, MNULL, PNULL, 0, 0, 0, 0, 0, 0);
 // Integrated toolset - ditto
  itypes["toolset"]=
   new itype("toolset", 0, 0, "integrated toolset",
-            "A fake item. If you are reading this it's a bug!",
+            "A fake item. If you are reading this it's a bug! (itypdef:toolset)",
             '$', c_red, MNULL, MNULL, PNULL, 0, 0, 0, 0, 0, 0);
 // For smoking crack or meth
  itypes["apparatus"]=
   new itype("apparatus", 0, 0, "something to smoke that from, and a lighter",
-            "A fake item. If you are reading this it's a bug!",
+            "A fake item. If you are reading this it's a bug! (itypdef:apparatus)",
             '$', c_red, MNULL, MNULL, PNULL, 0, 0, 0, 0, 0, 0);
 
 // Drinks
@@ -3821,6 +3821,10 @@ TOOL("radio_on", "radio (on)",	 0, 420,';', c_yellow,	PLASTIC, IRON,
     4,  2,  4,  0, -1, 100,100, 0,  8, AT_BATT, "radio",&iuse::radio_on, 0,"\
 This radio is turned on, and continually draining its batteries. It is\n\
 playing the broadcast being sent from any nearby radio towers.");
+
+TOOL("directional_antenna", "directional antenna",	18, 80, ',', c_ltcyan,	STEEL,	MNULL,
+     8,  4, -3,  0,  1, 0, 0, 0, 0, AT_NULL, "null", &iuse::directional_antenna, 0,"\
+An antenna designed to pick up signals better when pointed at the source.");
 
 TOOL("noise_emitter", "noise emitter (off)", 0, 600, ';', c_yellow, PLASTIC, IRON,
     4,  3,  6,  0, -1, 100,100, 0,  0, AT_BATT, "null", &iuse::noise_emitter_off, 0,"\
