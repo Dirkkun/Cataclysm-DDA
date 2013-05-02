@@ -9,6 +9,8 @@
 #   make CROSS=i686-pc-mingw32-
 # Win32
 #   Run: make NATIVE=win32
+# OS X
+#   Run: make NATIVE=osx
 
 # Build types:
 # Debug (no optimizations)
@@ -91,6 +93,10 @@ else
     CXXFLAGS += -m32
   endif
 endif
+# OSX
+ifeq ($(NATIVE), osx)
+  CXXFLAGS += -mmacosx-version-min=10.6
+endif
 # Win32 (mingw32?)
 ifeq ($(NATIVE), win32)
   TARGET = $(W32TARGET)
@@ -138,7 +144,7 @@ $(DDIR):
 $(ODIR)/%.o: %.cpp
 	$(CXX) $(DEFINES) $(CXXFLAGS) -c $< -o $@
 
-clean:
+clean: clean-tests
 	rm -f $(TARGET) $(W32TARGET) $(ODIR)/*.o $(ODIR)/*.d $(W32ODIR)/*.o $(W32BINDIST) \
 	$(BINDIST)
 	rm -rf $(BINDIST_DIR)
@@ -165,7 +171,10 @@ tests: $(ODIR) $(DDIR) $(OBJS)
 check: tests
 	$(MAKE) -C tests check
 
-.PHONY: tests check ctags etags
+clean-tests:
+	$(MAKE) -C tests clean
+
+.PHONY: tests check ctags etags clean-tests
 
 -include $(SOURCES:%.cpp=$(DEPDIR)/%.P)
 -include ${OBJS:.o=.d}

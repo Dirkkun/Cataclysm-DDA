@@ -588,7 +588,7 @@ void game::process_activity()
     return;
    }
    veh->refill (AT_GAS, 200);
-   if(one_in(10)) {
+   if(one_in(800)) {
      // Scan for the gas pump we're refuelling from and deactivate it.
     for(int i = -1; i <= 1; i++)
      for(int j = -1; j <= 1; j++)
@@ -642,11 +642,24 @@ void game::process_activity()
     }
 
     no_recipes = true;
-    if (reading->recipes.size() > 0) {
-     u.try_study_recipe(this, reading);
-     if (!u.studied_all_recipes(reading)) {
-      no_recipes = false;
-     }
+    if (reading->recipes.size() > 0) 
+    {
+        bool recipe_learned = false;
+        
+        recipe_learned = u.try_study_recipe(this, reading);
+        if (!u.studied_all_recipes(reading)) 
+        {
+            no_recipes = false;
+        }
+        
+        // for books that the player cannot yet read due to skill level, but contain
+        // lower level recipes, break out once recipe has been studied  
+        if ((u.skillLevel(reading->type) < (int)reading->req))
+        {
+            if (recipe_learned)
+                add_msg("The rest of the book is currently still beyond your understanding.");
+            break;
+        }
     }
 
     if (u.skillLevel(reading->type) < (int)reading->level) {
@@ -5050,8 +5063,12 @@ void printItems(player &u,WINDOW* window,int page, int selected_index, bool acti
 {
     int itemsPerPage;
     itemsPerPage=getmaxy(window)-ADVINVOFS; // fixme
+    int columns=getmaxx(window);
+    int rightcol=columns-8;
     nc_color norm = active ? c_white : c_dkgray;
     invslice stacks = u.inv.slice(page * itemsPerPage, itemsPerPage);
+    mvwprintz(window,5,4,c_ltgray,"Name [servings (number)");
+    mvwprintz(window,5,rightcol-3,c_ltgray,"weight vol");
     for(int i = 0; i < stacks.size() && i < itemsPerPage; ++i)
     {
         nc_color thiscolor = norm;
@@ -5059,12 +5076,12 @@ void printItems(player &u,WINDOW* window,int page, int selected_index, bool acti
         if(active && selected_index == i)
         {
             thiscolor = c_yellow;
-            mvwprintz(window,6+i,2,thiscolor,">>");
+            mvwprintz(window,6+i,1,thiscolor,">>");
         }
         else
         {
         }
-        mvwprintz(window,6+i,6,thiscolor,"%s",it.tname(g).c_str());
+        mvwprintz(window,6+i,4,thiscolor,"%s",it.tname(g).c_str());
         int size = u.inv.stack_by_letter(it.invlet).size();
         if(size > 1)
         {
@@ -5079,6 +5096,7 @@ void printItems(player &u,WINDOW* window,int page, int selected_index, bool acti
         {
             wprintz(window,thiscolor," (%d)",it.contents[0].charges);
         }
+        mvwprintz(window,6+i,rightcol,thiscolor,"%3d %3d",it.weight(),it.volume());
     }
 }
 
@@ -7107,7 +7125,6 @@ void game::plfire(bool burst)
   else if (u.has_charges("UPS_on", 5))
    u.use_charges("UPS_on", 5);
  }
-
  if (u.weapon.mode == IF_MODE_BURST)
   burst = true;
 
