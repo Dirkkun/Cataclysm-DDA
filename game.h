@@ -307,6 +307,7 @@ class game
 
 // Data Initialization
   void init_itypes();       // Initializes item types
+  void init_skills();
   void init_bionics();      // Initializes bionics... for now.
   void init_mapitems();     // Initializes item placement
   void init_mtypes();       // Initializes monster types
@@ -479,6 +480,8 @@ class game
   calendar latest_lightlevel_turn;
 
   special_game *gamemode;
+
+  int moveCount; //Times the player has moved (not pause, sleep, etc)
 };
 
 #endif

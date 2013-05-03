@@ -241,6 +241,7 @@ struct itype
  virtual bool is_software()      { return false; }
  virtual bool is_macguffin()     { return false; }
  virtual bool is_style()         { return false; }
+ virtual bool is_stationary()    { return false; }
  virtual bool is_artifact()      { return false; }
  virtual bool is_var_veh_part()  { return false; }
  virtual bool is_engine()         { return false; }
@@ -435,6 +436,7 @@ struct it_gun : public itype
  ammotype ammo;
  Skill *skill_used;
  signed char dmg_bonus;
+ signed char range;
  signed char accuracy;
  signed char recoil;
  signed char durability;
@@ -451,7 +453,7 @@ struct it_gun : public itype
         signed char pmelee_dam, signed char pmelee_cut, signed char pm_to_hit,
         unsigned pitem_flags,
 
-	const char *pskill_used, ammotype pammo, signed char pdmg_bonus,
+	const char *pskill_used, ammotype pammo, signed char pdmg_bonus, signed char prange,
 	signed char paccuracy, signed char precoil, unsigned char pdurability,
         unsigned char pburst, int pclip, int preload_time)
 :itype(pid, prarity, pprice, pname, pdes, psym, pcolor, pm1, pm2, SOLID,
@@ -459,6 +461,7 @@ struct it_gun : public itype
   skill_used = pskill_used?Skill::skill(pskill_used):NULL;
   ammo = pammo;
   dmg_bonus = pdmg_bonus;
+  range = prange;
   accuracy = paccuracy;
   recoil = precoil;
   durability = pdurability;
@@ -466,6 +469,8 @@ struct it_gun : public itype
   clip = pclip;
   reload_time = preload_time;
  }
+
+ it_gun() { };
 };
 
 struct it_gunmod : public itype
@@ -749,6 +754,27 @@ struct it_style : public itype
 
 :itype(pid, prarity, pprice, pname, pdes, psym, pcolor, pm1, pm2, SOLID,
        pvolume, pweight, pmelee_dam, pmelee_cut, pm_to_hit, pitem_flags) { }
+};
+
+struct it_stationary : public itype
+{
+ virtual bool is_stationary()         { return true; }
+
+ std::string category;
+
+ it_stationary(std::string pid, unsigned char prarity, unsigned int pprice,
+          std::string pname, std::string pdes,
+          char psym, nc_color pcolor, material pm1, material pm2,
+          unsigned char pvolume, unsigned char pweight,
+          signed char pmelee_dam, signed char pmelee_cut,
+          signed char pm_to_hit, unsigned pitem_flags,
+          std::string pcategory)
+
+:itype(pid, prarity, pprice, pname, pdes, psym, pcolor, pm1, pm2, SOLID,
+       pvolume, pweight, pmelee_dam, pmelee_cut, pm_to_hit, pitem_flags)
+ {
+     category = pcategory;
+ }
 };
 
 struct it_artifact_tool : public it_tool

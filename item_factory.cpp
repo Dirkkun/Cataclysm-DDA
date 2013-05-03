@@ -21,7 +21,6 @@ Item_factory::Item_factory(){
     m_missing_item->name = "Error: Item Missing";
     m_missing_item->description = "Error: No item template of this type.";
     m_templates["MISSING_ITEM"]=m_missing_item;
-    load_item_templates();
 }
 
 void Item_factory::init(){
@@ -199,10 +198,31 @@ void Item_factory::init(){
   item_flags_list["FIT"] = mfb(IF_FIT);
   item_flags_list["DOUBLE_AMMO"] = mfb(IF_DOUBLE_AMMO);
 
+// Offensive Techniques
+  techniques_list["SWEEP"] = mfb(TEC_SWEEP);
+  techniques_list["PRECISE"] = mfb(TEC_PRECISE);
+  techniques_list["BRUTAL"] = mfb(TEC_BRUTAL);
+  techniques_list["GRAB"] = mfb(TEC_GRAB);
+  techniques_list["WIDE"] = mfb(TEC_WIDE);
+  techniques_list["RAPID"] = mfb(TEC_RAPID);
+  techniques_list["FEINT"] = mfb(TEC_FEINT);
+  techniques_list["THROW"] = mfb(TEC_THROW);
+  techniques_list["DISARM"] = mfb(TEC_DISARM);
+// Defensive Techniques
+  techniques_list["BLOCK"] = mfb(TEC_BLOCK);
+  techniques_list["BLOCK_LEGS"] = mfb(TEC_BLOCK_LEGS);
+  techniques_list["WBLOCK_1"] = mfb(TEC_WBLOCK_1);
+  techniques_list["WBLOCK_2"] = mfb(TEC_WBLOCK_2);
+  techniques_list["WBLOCK_3"] = mfb(TEC_WBLOCK_3);
+  techniques_list["COUNTER"] = mfb(TEC_COUNTER);
+  techniques_list["BREAK"] = mfb(TEC_BREAK);
+  techniques_list["DEF_THROW"] = mfb(TEC_DEF_THROW);
+  techniques_list["DEF_DISARM"] = mfb(TEC_DEF_DISARM);
 }
 
 //Will eventually be deprecated - Loads existing item format into the item factory, and vice versa
-void Item_factory::init(game* main_game){
+void Item_factory::init(game* main_game){	
+    load_item_templates(); // this one HAS to be called after game is created
     // Make a copy of our items loaded from JSON
     std::map<Item_tag, itype*> new_templates = m_templates;
     //Copy the hardcoded template pointers to the factory list
@@ -289,6 +309,7 @@ Item_list Item_factory::create_random(int created_at, int quantity){
 void Item_factory::load_item_templates(){
     load_item_templates_from("data/raw/items/instruments.json");
     load_item_templates_from("data/raw/items/melee.json");
+    load_item_templates_from("data/raw/items/ranged.json");
     load_item_groups_from("data/raw/item_groups.json");
 }
 
@@ -335,7 +356,41 @@ void Item_factory::load_item_templates_from(const std::string file_name){
                 if(m_templates.find(new_id) != m_templates.end()){
                     std::cerr << "Item definition skipped, id " << new_id << " already exists." << std::endl;
                 } else {
-                    itype* new_item_template =  new itype();
+                    itype* new_item_template;
+                    if (entry_body.find("type") == entry_body.end())
+                    {
+                        new_item_template = new itype();
+                    }
+                    else
+                    {
+                        std::string type_label = string_from_json(new_id, "type", entry_body);
+                        if (type_label == "MELEE")
+                        {
+                            new_item_template = new itype();
+                        }
+                        else if (type_label == "GUN")
+                        {
+                            it_gun* gun_template = new it_gun();
+                            gun_template->ammo = ammo_from_json(new_id, "ammo", entry_body);
+                            gun_template->skill_used = Skill::skill(string_from_json(new_id, "skill", entry_body));
+                            gun_template->dmg_bonus = int_from_json(new_id, "ranged_damage", entry_body);
+                            gun_template->range = int_from_json(new_id, "range", entry_body);
+                            gun_template->accuracy = int_from_json(new_id, "accuracy", entry_body);
+                            gun_template->recoil = int_from_json(new_id, "recoil", entry_body);
+                            gun_template->durability = int_from_json(new_id, "durability", entry_body);
+                            gun_template->burst = int_from_json(new_id, "burst", entry_body);
+                            gun_template->clip = int_from_json(new_id, "clip_size", entry_body);
+                            gun_template->reload_time = int_from_json(new_id, "reload", entry_body);
+
+                            new_item_template = gun_template;
+                        }
+                        else
+                        {
+                            std::cerr << "Item definition for " << new_id << " skipped, unrecognized type: " <<
+                                      type_label << std::endl;
+                            break;
+                        }
+                    }
                     new_item_template->id = new_id;
                     m_templates[new_id] = new_item_template;
 
@@ -355,6 +410,7 @@ void Item_factory::load_item_templates_from(const std::string file_name){
                     new_item_template->m_to_hit = int_from_json(new_id, "to_hit", entry_body);
                     new_item_template->use = use_from_json(new_id, "use_action", entry_body);
                     new_item_template->item_flags = flags_from_json(new_id, "flags", entry_body);
+                    new_item_template->techniques = techniques_from_json(new_id, "techniques", entry_body);
                 }
             }
         }
@@ -515,14 +571,12 @@ nc_color Item_factory::color_from_json(Item_tag new_id, Item_tag index, picojson
         return c_blue;
     } else if("green"==new_color){
         return c_green;
-    } else if("light_gray"==new_color){
-        return c_ltgray;
     } else if("light_cyan"==new_color){
         return c_ltcyan;
     } else if("brown"==new_color){
         return c_brown;
     } else if("light_red"==new_color){
-        return c_red;
+        return c_ltred;
     } else if("white"==new_color){
         return c_white;
     } else if("light_blue"==new_color){
@@ -544,6 +598,76 @@ nc_color Item_factory::color_from_json(Item_tag new_id, Item_tag index, picojson
     } else {
         std::cerr << "Item "<< new_id << " attribute color was skipped, not a color. Color is required." << std::endl;
         return c_white;
+    }
+}
+
+ammotype Item_factory::ammo_from_json(Item_tag new_id, Item_tag index, picojson::value::object value_map){
+    std::string new_ammo = string_from_json(new_id, index, value_map);
+    if("nail"==new_ammo){
+        return AT_NAIL;
+    } else if ("BB" == new_ammo) {
+        return AT_BB;
+    } else if ("pebble" == new_ammo) {
+        return AT_PEBBLE;
+    } else if ("bolt" == new_ammo) {
+        return AT_BOLT;
+    } else if ("arrow" == new_ammo) {
+        return AT_ARROW;
+    } else if ("shot" == new_ammo) {
+        return AT_SHOT;
+    } else if (".22" == new_ammo) {
+        return AT_22;
+    } else if ("9mm" == new_ammo) {
+        return AT_9MM;
+    } else if ("7.62x25mm" == new_ammo) {
+        return AT_762x25;
+    } else if (".38" == new_ammo) {
+        return AT_38;
+    } else if (".40" == new_ammo) {
+        return AT_40;
+    } else if (".44" == new_ammo) {
+        return AT_44;
+    } else if (".45" == new_ammo) {
+        return AT_45;
+    } else if ("5.7mm" == new_ammo) {
+        return AT_57;
+    } else if ("4.6mm" == new_ammo) {
+        return AT_46;
+    } else if ("7.62x39mm" == new_ammo) {
+        return AT_762;
+    } else if (".223" == new_ammo) {
+        return AT_223;
+    } else if (".30-06" == new_ammo) {
+        return AT_3006;
+    } else if (".308" == new_ammo) {
+        return AT_308;
+    } else if ("40mm" == new_ammo) {
+        return AT_40MM;
+    } else if ("66mm" == new_ammo) {
+        return AT_66MM;
+    } else if ("gasoline" == new_ammo) {
+        return AT_GAS;
+    } else if ("thread" == new_ammo) {
+        return AT_THREAD;
+    } else if ("battery" == new_ammo) {
+        return AT_BATT;
+    } else if ("plutonium" == new_ammo) {
+        return AT_PLUT;
+    } else if ("muscle" == new_ammo) {
+        return AT_MUSCLE;
+    } else if ("fusion" == new_ammo) {
+        return AT_FUSION;
+    } else if ("12mm" == new_ammo) {
+        return AT_12MM;
+    } else if ("plasma" == new_ammo) {
+        return AT_PLASMA;
+    } else if ("water" == new_ammo) {
+        return AT_WATER;
+    } else if ("none" == new_ammo) {
+        return AT_NULL; // NX17 and other special weapons
+    } else {
+        std::cerr << "Item "<< new_id << " attribute ammo was skipped, not recognized. Ammo is required for this item." << std::endl;
+        return AT_NULL;
     }
 }
 
@@ -588,6 +712,40 @@ unsigned Item_factory::flags_from_json(Item_tag new_id, Item_tag index, picojson
                 if((*iter).is<std::string>()){
                     std::map<Item_tag, unsigned>::const_iterator found_flag_iter = item_flags_list.find((*iter).get<std::string>());
                     if(found_flag_iter != item_flags_list.end()){
+                      flag = flag | found_flag_iter->second;
+                    } else {
+                      std::cerr << "Item " << new_id << " has an invalid flag."; 
+                    }                
+                } else {
+                    std::cerr << "Item "<< new_id << " has a non-string flag listed." << std::endl;
+                }
+            }
+        } else {
+            std::cerr << "Item "<< new_id << " flag was skipped, not a string or array of strings." << std::endl;
+        }
+    }
+    return flag;
+}
+
+unsigned Item_factory::techniques_from_json(Item_tag new_id, Item_tag index, picojson::value::object value_map){
+    //If none is found, just use the standard none action
+    unsigned flag = 0;
+    //Otherwise, grab the right label to look for
+    picojson::value::object::const_iterator value_pair = value_map.find(index);
+    if(value_pair != value_map.end()){
+        if(value_pair->second.is<std::string>()){
+            std::map<Item_tag, unsigned>::const_iterator found_flag_iter = techniques_list.find(value_pair->second.get<std::string>());
+            if(found_flag_iter != techniques_list.end()){
+              flag = flag | found_flag_iter->second;
+            } else {
+              std::cerr << "Item " << new_id << " has an invalid flag."; 
+            }
+        } else if (value_pair->second.is<picojson::array>()) {
+            const picojson::array& materials_json = value_pair->second.get<picojson::array>();
+            for (picojson::array::const_iterator iter = materials_json.begin(); iter != materials_json.end(); ++iter) {
+                if((*iter).is<std::string>()){
+                    std::map<Item_tag, unsigned>::const_iterator found_flag_iter = techniques_list.find((*iter).get<std::string>());
+                    if(found_flag_iter != techniques_list.end()){
                       flag = flag | found_flag_iter->second;
                     } else {
                       std::cerr << "Item " << new_id << " has an invalid flag."; 

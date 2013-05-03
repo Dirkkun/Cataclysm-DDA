@@ -15,6 +15,7 @@
 #include "output.h"
 #include "item_factory.h"
 #include "helper.h"
+#include "text_snippets.h"
 
 #include <map>
 #include <algorithm>
@@ -55,8 +56,10 @@ game::game() :
 {
  dout() << "Game initialized.";
 // Gee, it sure is init-y around here!
+ init_skills();
  init_bionics();      // Set up bionics                   (SEE bionics.cpp)
  init_itypes();	      // Set up item types                (SEE itypedef.cpp)
+ SNIPPET.load();
  item_controller->init(this); //Item manager
  init_mtypes();	      // Set up monster types             (SEE mtypedef.cpp)
  init_monitems();     // Set up the items monsters carry  (SEE monitemsdef.cpp)
@@ -87,6 +90,11 @@ game::~game()
  delwin(w_messages);
  delwin(w_location);
  delwin(w_status);
+}
+
+void game::init_skills()
+{
+    Skill::skills = Skill::loadSkills();
 }
 
 void game::init_ui(){
@@ -642,18 +650,18 @@ void game::process_activity()
     }
 
     no_recipes = true;
-    if (reading->recipes.size() > 0) 
+    if (reading->recipes.size() > 0)
     {
         bool recipe_learned = false;
-        
+
         recipe_learned = u.try_study_recipe(this, reading);
-        if (!u.studied_all_recipes(reading)) 
+        if (!u.studied_all_recipes(reading))
         {
             no_recipes = false;
         }
-        
+
         // for books that the player cannot yet read due to skill level, but contain
-        // lower level recipes, break out once recipe has been studied  
+        // lower level recipes, break out once recipe has been studied
         if ((u.skillLevel(reading->type) < (int)reading->req))
         {
             if (recipe_learned)
@@ -1286,6 +1294,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_N:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(0, -1);
    else
@@ -1293,6 +1303,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_NE:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(1, -1);
    else
@@ -1300,6 +1312,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_E:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(1, 0);
    else
@@ -1307,6 +1321,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_SE:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(1, 1);
    else
@@ -1314,6 +1330,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_S:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(0, 1);
    else
@@ -1321,6 +1339,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_SW:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(-1, 1);
    else
@@ -1328,6 +1348,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_W:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(-1, 0);
    else
@@ -1335,6 +1357,8 @@ bool game::handle_action()
    break;
 
   case ACTION_MOVE_NW:
+   moveCount++;
+
    if (u.in_vehicle)
     pldrive(-1, -1);
    else
@@ -2943,7 +2967,7 @@ void game::draw_HP()
             }
         } else {
             mvwprintz(w_HP, i * 2 + 1, 0, color, health_bar.c_str());
-            
+
             //Add the trailing symbols for a not-quite-full health bar
             int bar_remainder = 5;
             while(bar_remainder > health_bar.size()){
@@ -3896,7 +3920,7 @@ void game::explosion(int x, int y, int power, int shrapnel, bool fire)
    int mon_hit = mon_at(i, j), npc_hit = npc_at(i, j);
    if (mon_hit != -1 && !z[mon_hit].dead &&
        z[mon_hit].hurt(rng(dam / 2, dam * 1.5))) {
-    if (z[mon_hit].hp < 0 - 1.5 * z[mon_hit].type->hp)
+    if (z[mon_hit].hp < 0 - (z[mon_hit].type->size < 2? 1.5:3) * z[mon_hit].type->hp)
      explode_mon(mon_hit); // Explode them if it was big overkill
     else
      kill_mon(mon_hit); // TODO: player's fault?
@@ -5118,14 +5142,14 @@ void game::advanced_inv()
 {
     const int head_height=5;	// 7 is wasteful
     const int min_w_height=10;
-    //80x25 
+    //80x25
     const int min_w_width=80;
     const int max_w_width=120;
-    
+
     int itemsPerPage=10;
     int w_height = (TERMY<min_w_height+head_height) ? min_w_height : TERMY-head_height;
     int w_width = (TERMX<min_w_width) ? min_w_width : (TERMX>max_w_width) ? max_w_width : (int)TERMX;
-//maxitems = (VIEWY < 12) ? 20 : VIEWY*2-4; 
+//maxitems = (VIEWY < 12) ? 20 : VIEWY*2-4;
     if (u.in_vehicle)
     {
         add_msg("Exit vehicle first");
@@ -7742,6 +7766,12 @@ void game::plmove(int x, int y)
  } else {
   x += u.posx;
   y += u.posy;
+
+  if (moveCount % 60 == 0) {
+   if (u.has_bionic("bio_torsionratchet")) {
+    u.charge_power(1);
+   }
+  }
  }
 
  dbg(D_PEDANTIC_INFO) << "game:plmove: From ("<<u.posx<<","<<u.posy<<") to ("<<x<<","<<y<<")";
