@@ -482,14 +482,20 @@ void monster::hit_player(game *g, player &p, bool can_grab)
  technique_id tech = p.pick_defensive_technique(g, this, NULL);
  p.perform_defensive_technique(tech, g, this, NULL, bphit, side,
                                dam, cut, stab);
- if (dam == 0 && u_see)
-  g->add_msg("The %s misses %s.", name().c_str(), you.c_str());
+
+//We dodged
+ if (type->melee_skill * 10 < p.dodge_roll(g) && !one_in(p.dodge(g))) {
+  g->add_msg("%s dodge the %s.", You.c_str(), name().c_str());
+  p.practice(g->turn, "dodge", 10);
+  }
+//Successful hit with damage
  else if (dam > 0) {
+  p.practice(g->turn, "dodge", 5);
   if (u_see && tech != TEC_BLOCK)
    g->add_msg("The %s hits %s %s.", name().c_str(), your.c_str(),
               body_part_name(bphit, side).c_str());
-// Attempt defensive moves
 
+// Attempt defensive moves
   if (!is_npc) {
    if (g->u.activity.type == ACT_RELOAD)
     g->add_msg("You stop reloading.");
@@ -531,7 +537,7 @@ void monster::hit_player(game *g, player &p, bool can_grab)
    p.add_disease(DI_BLEED, 60, g);
   }
   if (can_grab && has_flag(MF_GRABS) &&
-      dice(type->melee_dice, 10) > dice(p.dodge(g), 10)) {
+      type->melee_skill * 10 > p.dodge_roll(g)) {
    if (!is_npc)
     g->add_msg("The %s grabs you!", name().c_str());
    if (p.weapon.has_technique(TEC_BREAK, &p) &&
