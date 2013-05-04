@@ -2493,6 +2493,112 @@ case ot_s_restaurant_coffee_west:{
    rotate(1);
   }break;
 
+
+ case ot_sky:
+  for (int i = 0; i < SEEX * 2; i++) {
+   for (int j = 0; j < SEEY * 2; j++) {
+    ter_set( i, j, t_air );
+   }
+  }
+  break;
+
+case ot_shelter_over:
+{
+  for (int i = 0; i < SEEX*2; i++) {
+   for (int j = 0; j < SEEY*2; j++)
+    ter_set( i, j, t_air );
+  }
+
+  square(this, t_floor_red, 0, 0, 5, 2);
+  line(this, t_wall_h, 1, 0, 2, 0);
+  line(this, t_wall_h, 1, 2, 2, 2);
+  line(this, t_wall_v, 0, 0, 0, 2);
+  line(this, t_wall_v, 2, 2, 2, 0);
+  ter_set( 2, 1, t_door_locked );
+
+  ter_set( 1, 1, t_stairs_up );
+
+
+  square(this, t_floor, 4, 4, SEEX * 2 - 5, SEEY * 2 - 5);
+
+  line(this, t_wall_h, 4, 4, SEEX * 2 - 5, 4);
+  line(this, t_wall_h, 4, SEEY * 2 - 5, SEEX * 2 - 5, SEEY * 2 - 5);
+
+  line(this, t_pavement, SEEX+4, 3, SEEX * 2 - 4, 3);
+  line(this, t_pavement, SEEX * 2 - 4, 4, SEEX * 2 - 4, 11);
+  line(this, t_pavement, SEEX * 2 - 4, 14, SEEX * 2 - 4, 19);
+
+  line(this, t_pavement, SEEX * 2 - 5, SEEY * 2 - 4, SEEX+1, SEEY * 2 - 4);
+  line(this, t_pavement, SEEX-3, SEEY * 2 - 4, 3, 20);
+
+  line(this, t_sidewalk, 3, 19, 3, 15);
+  line(this, t_sidewalk, 3, 10, 3, 5);
+
+  line(this, t_wall_v, 4, 5, 4, SEEY * 2 - 6);
+  line(this, t_wall_v, 7, 5, 7, SEEY * 2 - 6);
+
+  line(this, t_wall_v, SEEX * 2 - 5, 5, SEEX * 2 - 5, SEEY * 2 - 6);
+  line(this, t_wall_v, SEEX * 2 - 8, 5, SEEX * 2 - 8, SEEY * 2 - 6);
+
+  ter_set( 16, 11, t_door_c );
+  ter_set( 15, 13, t_bookcase );
+  ter_set( 15, 14, t_rack );
+  ter_set( 15, 14, t_locker );
+  ter_set( 15, 9, t_table );
+  ter_set( 15, 5, t_dresser );
+
+  ter_set( 8, 7, t_dresser );
+  ter_set( 7, 11, t_door_c );
+  ter_set( 8, 10, t_locker );
+  ter_set( 8, 11, t_bookcase );
+  ter_set( 8, 12, t_bookcase );
+  ter_set( 8, 18, t_chair );
+  ter_set( 9, 12, t_crate_c );
+
+  ter_set( 11, 18, t_locker );
+  ter_set( 12,18, t_bookcase );
+
+  ter_set( SEEX+2, 4, t_curtains );
+  ter_set( SEEX+3, 4, t_curtains );
+
+  ter_set( SEEX-4, 4, t_curtains );
+  ter_set( SEEX-3, 4, t_window_domestic );
+
+  ter_set( 5, 17, t_stairs_up );
+  ter_set( 15, 18, t_stairs_down );
+
+  add_graffiti(g, 14, 15, "I write this message...\n\
+                  with my own blood...\n            \
+         if you want to jump...\n                   \
+             ...try pressing SHIFT+X.");
+
+  spawn_item(5, 5, (*itypes)["mp3"], 0);
+  spawn_item(17, 18, (*itypes)["crowbar"], 0);
+}
+ break;
+
+
+case ot_shelter_over2:
+{
+// Init to air;
+  for (int i = 0; i < SEEX*2; i++) {
+   for (int j = 0; j < SEEY*2; j++)
+    ter_set( i, j, t_air );
+  }
+
+  square(this, t_pavement, 0, 0, 2, 2);
+  ter_set( 0, 1, t_stairs_down );
+
+  square(this, t_pavement, 4, 4, SEEX * 2 - 5, SEEY * 2 - 5);
+  ter_set( 5, 18, t_stairs_down );
+
+  spawn_item(14+rng(-2,2), 14+rng(-2,2), (*itypes)["law_packed"], 0);
+  for(int i= 0; i < 5; i++)
+      spawn_item(14+rng(-2,2), 14+rng(-2,2), (*itypes)["66mm_HEAT"], 0);
+
+}
+ break;
+
 //....
 case ot_shelter: {
 // Init to grass & dirt;
@@ -2501,7 +2607,7 @@ case ot_shelter: {
    mapf::formatted_set_terrain(this, 4, 4,
 "\
 |----:-++-:----|\n\
-|llll      c  6|\n\
+|<lll      c  6|\n\
 | b b b    c   |\n\
 | b b b    c   |\n\
 | b b b    c   |\n\
@@ -2517,8 +2623,8 @@ case ot_shelter: {
 |          c  x|\n\
 |----:-++-:----|\
 ",
-   mapf::basic_bind("- | + : b c 6 x > l",
-         t_wall_h, t_wall_v, t_door_c, t_window_domestic, t_bench, t_counter, t_console, t_console_broken, t_stairs_down, t_locker),
+   mapf::basic_bind("- | + : b c 6 x > < l",
+                    t_wall_h, t_wall_v, t_door_c, t_window_domestic, t_bench, t_counter, t_console, t_console_broken, t_stairs_down, t_stairs_up, t_locker),
    mapf::end() );
 
   tmpcomp = add_computer(SEEX+6, 5, "Evac shelter computer", 0);
