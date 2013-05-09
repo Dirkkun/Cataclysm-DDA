@@ -76,7 +76,7 @@ player::player()
  for (int i = 1; i < NUM_MUTATION_CATEGORIES; i++)
   mutation_category_level[i] = 0;
 
- for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin()++;
+ for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin();
       aSkill != Skill::skills.end(); ++aSkill) {
    skillLevel(*aSkill).level(0);
  }
@@ -353,26 +353,26 @@ void player::update_morale()
 
 /* Here lies the intended effects of body temperature
 
-Assumption 1 : a naked person is comfortable at 31C/87.8F.
-Assumption 2 : a "lightly clothed" person is comfortable at 25C/77F.
-Assumption 3 : frostbite cannot happen above 0C temperature.*
+Assumption 1 : a naked person is comfortable at 19C/66.2F (31C/87.8F at rest).
+Assumption 2 : a "lightly clothed" person is comfortable at 13C/55.4F (25C/77F at rest).
+Assumption 3 : the player is always running, thus generating more heat.
+Assumption 4 : frostbite cannot happen above 0C temperature.*
 * In the current model, a naked person can get frostbite at 1C. This isn't true, but it's a compromise with using nice whole numbers.
 
 Here is a list of warmth values and the corresponding temperatures in which the player is comfortable, and in which the player is very cold.
 
 Warmth  Temperature (Comfortable)    Temperature (Very cold)    Notes
-0        31C /  87.8F                 1C /  33.8F               * Naked
-10       25C /  77.0F                -5C /  23.0F               * Lightly clothed
-20       19C /  66.2F               -11C /  12.2F
-30       13C /  55.4F               -17C /   1.4F
-40        7C /  44.6F               -23C /  -9.4F
-50        1C /  33.8F               -29C / -20.2F
-60       -5C /  23.0F               -35C / -31.0F
-70      -11C /  12.2F               -41C / -41.8F
-80      -17C /   1.4F               -47C / -52.6F
-90      -23C /  -9.4F               -53C / -63.4F
-100     -29C / -20.2F               -59C / -74.2F
-
+  0       19C /  66.2F               -11C /  12.2F               * Naked
+ 10       13C /  55.4F               -17C /   1.4F               * Lightly clothed
+ 20        7C /  44.6F               -23C /  -9.4F
+ 30        1C /  33.8F               -29C / -20.2F
+ 40       -5C /  23.0F               -35C / -31.0F
+ 50      -11C /  12.2F               -41C / -41.8F
+ 60      -17C /   1.4F               -47C / -52.6F
+ 70      -23C /  -9.4F               -53C / -63.4F
+ 80      -29C / -20.2F               -59C / -74.2F
+ 90      -35C / -31.0F               -65C / -85.0F
+100      -41C / -41.8F               -71C / -95.8F
 */
 
 void player::update_bodytemp(game *g)
@@ -381,7 +381,8 @@ void player::update_bodytemp(game *g)
     // Converts temperature to Celsius/10(Wito plans on using degrees Kelvin later)
     int Ctemperature = 100*(g->temperature - 32) * 5/9;
     // Temperature norms
-    const int ambient_norm = 3100;
+    // Ambient normal temperature is lower while asleep
+    int ambient_norm = (has_disease(DI_SLEEP) ? 3100 : 1900);
     // This adjusts the temperature scale to match the bodytemp scale
     int adjusted_temp = (Ctemperature - ambient_norm);
     // This gets incremented in the for loop and used in the morale calculation
@@ -401,18 +402,6 @@ void player::update_bodytemp(game *g)
     {
         // Skip eyes
         if (i == bp_eyes) { continue; }
-        // CONDITIONS TO SKIP OVER BODY TEMPERATURE CALCULATION (this is being removed by another commit anyway...)
-        // Mutations
-        if (i == bp_hands && (has_trait(PF_TALONS) || has_trait(PF_WEBBED)))
-        {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
-        if (i == bp_mouth && has_trait(PF_BEAK))
-        {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
-        if (i == bp_feet && has_trait(PF_HOOVES))
-        {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
-        if (i == bp_torso && has_trait(PF_SHELL))
-        {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
-        if (i == bp_head && has_trait(PF_HORNS_CURLED))
-        {temp_conv[i] = temp_cur[i] = BODYTEMP_NORM; continue;}
         // Represents the fact that the body generates heat when it is cold. TODO : should this increase hunger?
         float homeostasis_adjustement = (temp_cur[i] > BODYTEMP_NORM ? 40.0 : 60.0);
         int clothing_warmth_adjustement =
@@ -423,9 +412,9 @@ void player::update_bodytemp(game *g)
         // Convergeant temperature is affected by ambient temperature, clothing warmth, and body wetness.
         temp_conv[i] = BODYTEMP_NORM + adjusted_temp + clothing_warmth_adjustement;
         // HUNGER
-        temp_conv[i] -= 2*(hunger + 100);
+        temp_conv[i] -= hunger/6 + 100;
         // FATIGUE
-        if (!has_disease(DI_SLEEP)) { temp_conv[i] -= 2*fatigue; }
+        if (!has_disease(DI_SLEEP)) { temp_conv[i] -= 1.5*fatigue; }
         else
         {
             int vpart = -1;
@@ -590,7 +579,7 @@ void player::update_bodytemp(game *g)
             case bp_hands : temp_equalizer(bp_hands, bp_arms); break;
             case bp_feet  : temp_equalizer(bp_feet, bp_legs); break;
         }
-        // MUTATIONS
+        // MUTATIONS and TRAITS
         // Bark : lowers blister count to -100; harder to get blisters
         // Lightly furred
         if (has_trait(PF_LIGHTFUR))
@@ -602,6 +591,16 @@ void player::update_bodytemp(game *g)
         {
             temp_conv[i] += (temp_cur[i] > BODYTEMP_NORM ? 750 : 1500);
         }
+        // Disintergration
+        if (has_trait(PF_ROT1)) { temp_conv[i] -= 250;}
+        else if (has_trait(PF_ROT2)) { temp_conv[i] -= 750;}
+        else if (has_trait(PF_ROT3)) { temp_conv[i] -= 1500;}
+        // Radioactive
+        if (has_trait(PF_RADIOACTIVE1)) { temp_conv[i] += 250; }
+        else if (has_trait(PF_RADIOACTIVE2)) { temp_conv[i] += 750; }
+        else if (has_trait(PF_RADIOACTIVE3)) { temp_conv[i] += 1500; }
+        // Chemical Imbalance
+        // Added linse in player::suffer()
         // FINAL CALCULATION : Increments current body temperature towards convergant.
         int temp_before = temp_cur[i];
         int temp_difference = temp_cur[i] - temp_conv[i]; // Negative if the player is warming up.
@@ -716,7 +715,7 @@ void player::update_bodytemp(game *g)
         }
         else if (temp_before > BODYTEMP_COLD && temp_after < BODYTEMP_COLD)
         {
-            g->add_msg("You feel your %s getting cold.",
+            g->add_msg("You feel your %s getting chilly.",
                 body_part_name(body_part(i), -1).c_str());
         }
         else if (temp_before < BODYTEMP_SCORCHING && temp_after > BODYTEMP_SCORCHING)
@@ -731,7 +730,7 @@ void player::update_bodytemp(game *g)
         }
         else if (temp_before < BODYTEMP_HOT && temp_after > BODYTEMP_HOT)
         {
-            g->add_msg("You feel your %s getting hot.",
+            g->add_msg("You feel your %s getting warm.",
                 body_part_name(body_part(i), -1).c_str());
         }
     }
@@ -1487,14 +1486,14 @@ Strength - 4;    Dexterity - 4;    Intelligence - 4;    Dexterity - 4");
  line = 1;
  std::vector <skill> skillslist;
  mvwprintz(w_skills, 0, 11, c_ltgray, "SKILLS");
- for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin()++;
+ for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin();
       aSkill != Skill::skills.end(); ++aSkill)
  {
   int i = (*aSkill)->id();
 
   SkillLevel level = skillLevel(*aSkill);
 
-  if ( i != 0 && sklevel[i] >= 0) {
+  if ( sklevel[i] >= 0) {
    skillslist.push_back(skill(i));
    // Default to not training and not rusting
    nc_color text_color = c_blue;
@@ -2154,11 +2153,11 @@ void player::disp_status(WINDOW *w, game *g)
  else if (temp_cur[print] >  BODYTEMP_VERY_HOT)
   mvwprintz(w, 1, 9, c_ltred, "Very hot!%s", temp_message);
  else if (temp_cur[print] >  BODYTEMP_HOT)
-  mvwprintz(w, 1, 9, c_yellow,"Hot%s", temp_message);
+  mvwprintz(w, 1, 9, c_yellow,"Warm%s", temp_message);
  else if (temp_cur[print] >  BODYTEMP_COLD) // If you're warmer than cold, you are comfortable
   mvwprintz(w, 1, 9, c_green, "Comfortable%s", temp_message);
  else if (temp_cur[print] >  BODYTEMP_VERY_COLD)
-  mvwprintz(w, 1, 9, c_ltblue,"Cold%s", temp_message);
+  mvwprintz(w, 1, 9, c_ltblue,"Chilly%s", temp_message);
  else if (temp_cur[print] >  BODYTEMP_FREEZING)
   mvwprintz(w, 1, 9, c_cyan,  "Very cold!%s", temp_message);
  else if (temp_cur[print] <= BODYTEMP_FREEZING)
@@ -6117,7 +6116,7 @@ void player::practice (const calendar& turn, Skill *s, int amount)
 
     if (isSavant)
     {
-        for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin()++;
+        for (std::vector<Skill*>::iterator aSkill = Skill::skills.begin();
              aSkill != Skill::skills.end(); ++aSkill)
         {
             if (skillLevel(*aSkill) > savantSkillLevel)
